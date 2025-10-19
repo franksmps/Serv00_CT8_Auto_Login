@@ -123,7 +123,7 @@ async def login(username: str, password: str, panel: str, screenshot_dir: str = 
             for b in possible_btns:
                 try:
                     text = (await page.evaluate('(el) => el.innerText || el.value || ""', b)).strip().lower()
-                    if any(k in text for k in ['login', 'sign in', 'sign-in', 'sign_in', 'signin', '登 录', '登录']):
+                    if any(k in text for k in ['login', 'sign in', 'sign-in', 'sign_in', 'ZALOGUJ SIĘ', 'signin', '登 录', '登录']):
                         login_button = b
                         break
                 except:
