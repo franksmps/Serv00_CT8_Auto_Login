@@ -8,7 +8,7 @@ from pyppeteer import launch
 import aiofiles
 
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')  # 支持多个 chat id，逗号分隔
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 def format_to_iso(dt):
     return dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -70,7 +70,6 @@ async def login(username, password, panel, screenshot_dir='.'):
             await page.screenshot({'path': screenshot_path, 'fullPage': True})
             raise Exception("找不到用户名或密码输入框")
 
-        # 填充账号密码
         try:
             await page.click(found_username)
             await page.evaluate('(sel) => document.querySelector(sel).value = ""', found_username)
@@ -84,7 +83,6 @@ async def login(username, password, panel, screenshot_dir='.'):
         except:
             await page.evaluate('(sel, val) => { const el = document.querySelector(sel); if(el){ el.focus(); el.value = val; el.dispatchEvent(new Event("input", {bubbles:true})); }}', found_password, password)
         
-        # 先尝试原有选择器找按钮
         login_button = None
         for sel in login_btn_selectors:
             try:
@@ -93,7 +91,7 @@ async def login(username, password, panel, screenshot_dir='.'):
                     break
             except:
                 continue
-        # 兜底：匹配多语文按钮文本（含波兰语 ZALOGUJ SIĘ）
+
         if not login_button:
             login_texts = ["ZALOGUJ SIĘ", "Login", "Sign in", "登录"]
             for txt in login_texts:
@@ -101,9 +99,18 @@ async def login(username, password, panel, screenshot_dir='.'):
                 if btns:
                     login_button = btns[0]
                     break
+
+        if not login_button:
+            for txt in login_texts:
+                btns = await page.xpath(f'//input[@type="submit" and contains(translate(@value, "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ", "abcdefghijklmnopqrstuvwxyząćęłńóśźż"), "{txt.lower()}")]')
+                if btns:
+                    login_button = btns[0]
+                    break
+
         if not login_button:
             await page.screenshot({'path': screenshot_path, 'fullPage': True})
             raise Exception("找不到任何语言的登录按钮")
+
         try:
             await page.evaluate('(el) => el.scrollIntoView({behavior:"auto", block:"center"})', login_button)
         except:
