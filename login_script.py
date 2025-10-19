@@ -46,9 +46,6 @@ async def login(username, password, panel, screenshot_dir='.'):
         password_selectors = [
             'input[name="password"]', '#id_password', 'input[type="password"]'
         ]
-        login_btn_selectors = [
-            'button[type="submit"]', 'input[type="submit"]', 'button.login-button', 'button.btn'
-        ]
 
         found_username = None
         found_password = None
@@ -82,34 +79,29 @@ async def login(username, password, panel, screenshot_dir='.'):
             await page.type(found_password, password, {'delay': 50})
         except:
             await page.evaluate('(sel, val) => { const el = document.querySelector(sel); if(el){ el.focus(); el.value = val; el.dispatchEvent(new Event("input", {bubbles:true})); }}', found_password, password)
-        
+
+        # 更宽泛匹配登录按钮
         login_button = None
-        for sel in login_btn_selectors:
-            try:
-                login_button = await page.waitForSelector(sel, {'visible': True, 'timeout': 6000})
-                if login_button:
-                    break
-            except:
-                continue
+        login_texts = ["ZALOGUJ SIĘ", "Login", "Sign in", "登录"]
+        possible_tags = ['button', 'input', 'a', 'div', 'span']
 
-        if not login_button:
-            login_texts = ["ZALOGUJ SIĘ", "Login", "Sign in", "登录"]
-            for txt in login_texts:
-                btns = await page.xpath(f'//button[contains(translate(text(), "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ", "abcdefghijklmnopqrstuvwxyząćęłńóśźż"), "{txt.lower()}")]')
-                if btns:
-                    login_button = btns[0]
+        for txt in login_texts:
+            txt_lower = txt.lower()
+            for tag in possible_tags:
+                if tag == 'input':
+                    xpath = f'//input[contains(translate(@value, "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ", "abcdefghijklmnopqrstuvwxyząćęłńóśźż"), "{txt_lower}")]'
+                else:
+                    xpath = f'//{tag}[contains(translate(text(), "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ", "abcdefghijklmnopqrstuvwxyząćęłńóśźż"), "{txt_lower}")]'
+                elements = await page.xpath(xpath)
+                if elements:
+                    login_button = elements[0]
                     break
-
-        if not login_button:
-            for txt in login_texts:
-                btns = await page.xpath(f'//input[@type="submit" and contains(translate(@value, "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ", "abcdefghijklmnopqrstuvwxyząćęłńóśźż"), "{txt.lower()}")]')
-                if btns:
-                    login_button = btns[0]
-                    break
+            if login_button:
+                break
 
         if not login_button:
             await page.screenshot({'path': screenshot_path, 'fullPage': True})
-            raise Exception("找不到任何语言的登录按钮")
+            raise Exception("找不到任何语言的登录按钮（扩展宽泛匹配）")
 
         try:
             await page.evaluate('(el) => el.scrollIntoView({behavior:"auto", block:"center"})', login_button)
